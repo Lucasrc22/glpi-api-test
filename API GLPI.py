@@ -1,4 +1,5 @@
 import requests
+import csv
 
 # URL base do seu GLPI
 glpi_url = "https://galactus.verdanadesk.com/apirest.php/"
@@ -24,21 +25,23 @@ session_data = response.json()
 session_token = session_data.get("session_token")
 headers["Session-Token"] = session_token
 
-entity_id = 1
+
+print("\n✅ Sessão iniciada\n")
 
 # Consultar tickets
 tickets_url = f"{glpi_url}/search/Ticket"  # ou f"{glpi_url}/Ticket/{ticket_id}" para um ticket específico
 
 params = {
+    "range": "0-9999",          # até 10 mil chamados
+    "forcedisplay[0]": "2",     # ID
+    "forcedisplay[1]": "1",     # Nome / Assunto
+    "forcedisplay[2]": "12",    # Status
+    "forcedisplay[3]": "15",    # Data de abertura
+    "forcedisplay[4]": "19",    # Data de solução
+    "forcedisplay[5]": "5",     # Técnico responsável
+    "forcedisplay[6]": "8",     # Categoria / área
+    "forcedisplay[7]": "151",   # Prazo para atendimento
 }
-params["criteria[0][field]"] = "2"
-params["criteria[0][searchtype]"] = "equals"
-params["criteria[0][value]"] = "10631"
-#params['link'] = "OR"
-#params["criteria[1][field]"] = "12"
-#params["criteria[1][searchtype]"] = "equals"
-#params["criteria[1][value]"] = 2
-params["range"]="0-10000"
   
 #Buscar status (campo 12) diferente de 5 (solucionado) e 6 (fechado) para montar backlog. Montar velocimetro 
 # separando por tempo de espera data atual - data abertura (campo 15)
@@ -60,37 +63,46 @@ response = requests.get(tickets_url, headers=headers, params=params)
 
 
 # Ver resultado
-if response.status_code == 200:
+if response.status_code in [200, 206]:
     tickets = response.json()
-    total_tickets = tickets.get('totalcount', 0)
-    total_pagina = tickets.get('count')
-    tickets_data = tickets.get('data', [])
-    for ticket_access in tickets_data:
-        print(f"ID: {ticket_access['2']}, Status: {ticket_access['12']},Assunto: {ticket_access['1']}")
-    print(tickets_data)
-    print({total_tickets})
-    print({total_pagina})
-    #for ticket in tickets:
-    #    ticket_id = ticket.get('id', 'N/A')
-    #    ticket_name = ticket.get('name', 'Sem título')
-    #    ticket_status = ticket.get('status', 'Status desconhecido')
-    #    print(f"ID: {ticket_id}, Nome: {ticket_name}, Status: {ticket_status}")
-    
-    #for ticket in tickets:
-        #print(f"ID: {ticket['id']}, Assunto: {ticket['name']}, Entidade: {ticket["entities_id"]}")
-else:
-    if response.status_code == 206:
-        tickets = response.json()
-        total_tickets = tickets.get('totalcount', 0)
-        total_pagina = tickets.get('count')
-        tickets_data = tickets.get('data', [])
-        for ticket_access in tickets_data:
-            print(f"ID: {ticket_access['2']}, Assunto: {ticket_access['1']}")
-        print(tickets_data)
-        print({total_tickets})
-        print({total_pagina})
-    else:
-        print("Erro ao consultar tickets:", response.status_code, response.text)
+    tickets_data = tickets.get("data", [])
+    total_tickets = tickets.get("totalcount", 0)
 
-# Encerrar a sessão
+    print(f"🔎 Total de chamados encontrados: {total_tickets}")
+
+    # Exportar para CSV
+    with open("tickets_glpi.csv", mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        # Cabeçalho
+        writer.writerow([
+            "ID",
+            "Assunto",
+            "Status",
+            "Data Abertura",
+            "Data Solução",
+            "Técnico Responsável",
+            "Categoria/Área",
+            "Prazo Atendimento"
+        ])
+
+        # Linhas
+        for ticket in tickets_data:
+            writer.writerow([
+                ticket.get("2"),   # ID
+                ticket.get("1"),   # Assunto
+                ticket.get("12"),  # Status
+                ticket.get("15"),  # Data de abertura
+                ticket.get("19"),  # Data de solução
+                ticket.get("5"),   # Técnico
+                ticket.get("8"),   # Categoria
+                ticket.get("151")  # Prazo
+            ])
+
+    print("📂 Arquivo 'tickets_glpi.csv' gerado com sucesso!")
+
+else:
+    print("❌ Erro ao consultar tickets:", response.status_code, response.text)
+
+# Encerrar sessão
 requests.get(f"{glpi_url}/killSession", headers=headers)
+print("🛑 Sessão encerrada")
