@@ -14,7 +14,10 @@ def get_tickets():
     if response.status_code == 200:
         dados = response.json()
         if "data" in dados:
-            return pd.DataFrame(dados["data"])
+            df = pd.DataFrame(dados["data"])
+            # Converte NaN/NaT para None (compatível com JSON)
+            df = df.where(pd.notnull(df), None)
+            return df
     return pd.DataFrame()
 
 @app.get("/")
