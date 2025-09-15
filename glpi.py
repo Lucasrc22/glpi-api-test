@@ -1,0 +1,50 @@
+import requests
+import pandas as pd
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse, StreamingResponse
+from io import StringIO
+
+app = FastAPI()
+
+# Endpoint direto do GLPI
+GLPI_JSON_URL = "https://galactus.verdanadesk.com/plugins/utilsdashboards/front/ajax/graphic.json.php?token=a2835a2c0309a808e5f8d4dc11de0aa0"
+
+def get_tickets():
+    response = requests.get(GLPI_JSON_URL)
+    if response.status_code == 200:
+        dados = response.json()
+        if "data" in dados:
+            df = pd.DataFrame(dados["data"])
+            # Converte NaN/NaT para None (compatível com JSON)
+            df = df.where(pd.notnull(df), None)
+            return df
+    return pd.DataFrame()
+
+@app.get("/")
+def root():
+    return {"msg": "API GLPI Galactus rodando no Render!"}
+
+@app.get("/tickets")
+def tickets_json():
+    # Carregar os dados
+    df = pd.read_csv("tickets.csv", encoding="utf-8")
+
+    # Substituir NaN/None por string vazia (ou outro valor padrão)
+    df = df.fillna("")
+
+    # Converter para lista de dicionários
+    data = df.to_dict(orient="records")
+
+    # Retornar JSON em UTF-8
+    return JSONResponse(content=data, media_type="application/json; charset=utf-8")
+@app.get("/tickets/csv")
+def tickets_csv():
+    df = get_tickets()
+    csv_buffer = StringIO()
+    df.to_csv(csv_buffer, index=False, encoding="utf-8-sig")
+    csv_buffer.seek(0)
+    return StreamingResponse(
+        iter([csv_buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=tickets_glpi.csv"}
+    )
