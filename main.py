@@ -24,11 +24,19 @@ def get_tickets():
 def root():
     return {"msg": "API GLPI Galactus rodando no Render!"}
 
-@app.get("/tickets/json")
+@app.get("/tickets")
 def tickets_json():
-    df = get_tickets()
-    return JSONResponse(content=df.to_dict(orient="records"))
+    # Carregar os dados
+    df = pd.read_csv("tickets.csv", encoding="utf-8")
 
+    # Substituir NaN/None por string vazia (ou outro valor padrão)
+    df = df.fillna("")
+
+    # Converter para lista de dicionários
+    data = df.to_dict(orient="records")
+
+    # Retornar JSON em UTF-8
+    return JSONResponse(content=data, media_type="application/json; charset=utf-8")
 @app.get("/tickets/csv")
 def tickets_csv():
     df = get_tickets()
