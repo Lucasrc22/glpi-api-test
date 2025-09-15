@@ -6,7 +6,7 @@ import os
 
 app = FastAPI(title="GLPI API to PowerBI", version="1.0")
 
-CSV_FILE = "tickets.csv"
+CSV_FILE = "tickets_glpi.csv"
 
 def load_dataframe():
     """Carrega o CSV em UTF-8 e garante que não quebre se estiver vazio ou ausente"""
