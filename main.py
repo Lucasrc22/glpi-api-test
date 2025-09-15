@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Response, PlainTextResponse
+from fastapi import FastAPI, Response
+from starlette.responses import PlainTextResponse
+
 import pandas as pd
 import requests
 import json
